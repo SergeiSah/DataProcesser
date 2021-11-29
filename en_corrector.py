@@ -1,23 +1,37 @@
-import plotly.express as px
+import plotly.graph_objects as go
+from errorhandler import try_read
 import numpy as np
+from scipy.interpolate import interpolate, pchip_interpolate
 from reader import *
 
 
-# path_dat_files = "../2021.09/Файлы/"
-# path_excel = "../2021.09/! Measurement_PM1 AS-2021-09-03 (SHORT).xlsx"
-
-
+@try_read
 def en_correction(file_path, real_en, kth_num):
 
     file = read_dat_file(file_path,
                          kth_num=kth_num,
                          scan_type='en')
+    if file is None: return
 
-    file['derv'] = file.intensity.diff() / file.intensity.index.to_series().diff()
-    meas_en = file[file['derv'] == file['derv'].min()]['en'].values[0]
-    # fig = px.line(file, x='en', y=['intensity', 'derv'])
+    file_new = smoothing(file)
+
+    # file['derv'] = file.intensity.diff() / file.intensity.index.to_series().diff()
+    # file['derv'] = file['derv'] / abs(file['derv'].mean()) * abs(file_new['derv'].mean())
+
+    file_new['derv'] = file_new.intensity.diff() / file_new.intensity.index.to_series().diff()
+    meas_en = file_new[file_new['derv'] == file_new['derv'].min()]['en'].values[0]
+
+    # fig = go.Figure()
+    # fig.add_trace(go.Scatter(x=file_new['en'], y=file_new['derv']))
+    # fig.add_trace(go.Scatter(x=file['en'], y=file['derv']))
     # fig.show()
+
     return meas_en, real_en - meas_en
 
 
-# print(en_correction(path_dat_files + 'AS_obl_2021_5771.dat', 932.12, 3))
+def smoothing(df, n_scatters=400, window=17):  # Adding points and smoothing
+    energies = np.linspace(min(df['en']), max(df['en']), n_scatters)
+    intensity = interpolate.interp1d(df['en'], df['intensity'], kind='quadratic')
+    step = df['en'][1] - df['en'][0]
+
+    return pd.DataFrame(data={'en': energies + step / 2, 'intensity': intensity(energies)}).rolling(window).mean()

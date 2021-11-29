@@ -1,7 +1,11 @@
 import pandas as pd
+from pandas.errors import EmptyDataError
 import numpy as np
 from en_corrector import *
 from reader import *
+
+
+DATE = "2021.11"
 
 
 def add_to_corrector(corrector, correction):
@@ -58,21 +62,24 @@ def intercept(x1, y1, x2, y2):
 
 en_corrector = pd.DataFrame(columns=['En_meas', 'En_real', 'Corr', 'Slope', 'Intercept'])
 
-date = "2021.02"
 
-path_dat_files = f"../{date}/Файлы/"
+path_dat_files = f"../{DATE}/Файлы/"
 path_processed_dat_files = path_dat_files + 'Обработанные/'
-path_test_log = f"../{date}/For_fast_processing.xlsx"
+path_test_log = f"../{DATE}/For_fast_processing.xlsx"
 
 df = read_excel_log(path_test_log)
 
+# TODO: Wrap in function
+# TODO: make "try" for FileNotFoundError
+# TODO: determine kth automatically
 for ind in df.index:
     line = df[df.index == ind]
 
     Io_file_num = line['Io file #'].values[0]  # str type
     Ir_file_num = line['file #'].values[0]  # str type
 
-    kth = 3
+    kth_Io = 3
+    kth_Ir = 3
 
     # Processing of the files with data measured from the filters for energy correction
     if 'edge' in str(line['Sample info'].values[0]) and 'order' in str(line['Sample info'].values[0]):
@@ -80,9 +87,9 @@ for ind in df.index:
         real_energy = line['Sample short name'].values[0]
         file_name = line['First part of file name'].values[0] + str(int(Ir_file_num)) + '.dat'
 
-        corr = en_correction(file_path=path_dat_files + file_name,
-                             real_en=real_energy,
-                             kth_num=kth)
+        corr = en_correction(file_path=path_dat_files + file_name, real_en=real_energy, kth_num=kth_Io)
+        if corr is None:
+            continue
 
         # Add data to en_corrector Data Frame
         en_corrector = add_to_corrector(en_corrector, corr)
@@ -94,8 +101,10 @@ for ind in df.index:
 
         scan_type = line['Scan m. 1'].values[0]
 
-        Io_data = read_dat_file(path_dat_files + Io_filename, kth, scan_type)
-        Ir_data = read_dat_file(path_dat_files + Ir_filename, kth, scan_type)
+        Io_data = read_dat_file(path_dat_files + Io_filename, kth_Io, scan_type)
+        Ir_data = read_dat_file(path_dat_files + Ir_filename, kth_Ir, scan_type)
+        if (Ir_data is None) and (Io_data is None):
+            continue
 
         Ir_Io = Ir_data
 
