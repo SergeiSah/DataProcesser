@@ -1,5 +1,5 @@
 import plotly.graph_objects as go
-from errorhandler import try_read
+from error_handler import try_read
 import numpy as np
 from scipy.interpolate import interpolate, pchip_interpolate
 from reader import *

@@ -70,7 +70,6 @@ path_test_log = f"../{DATE}/For_fast_processing.xlsx"
 df = read_excel_log(path_test_log)
 
 # TODO: Wrap in function
-# TODO: make "try" for FileNotFoundError
 # TODO: determine kth automatically
 for ind in df.index:
     line = df[df.index == ind]
@@ -101,6 +100,7 @@ for ind in df.index:
 
         scan_type = line['Scan m. 1'].values[0]
 
+        # TODO: Interpolate I0 data for x values from Ir data
         Io_data = read_dat_file(path_dat_files + Io_filename, kth_Io, scan_type)
         Ir_data = read_dat_file(path_dat_files + Ir_filename, kth_Ir, scan_type)
         if (Ir_data is None) and (Io_data is None):
