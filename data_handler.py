@@ -1,30 +1,31 @@
 import pandas as pd
-from pandas.errors import EmptyDataError
-import numpy as np
+from scipy.interpolate import interpolate
 from en_corrector import *
-from reader import *
+from file_reader import *
 
 
 DATE = "2021.11"
 
 
-def add_to_corrector(corrector, correction):
-    # correction: (Measured_energy, Energy_correction)
+def add_to_corrector(corrector: pd.DataFrame, meas_real: tuple) -> pd.DataFrame:
 
-    to_append = [correction[0], real_energy, correction[1], 0, 0]
-    a_series = pd.Series(to_append, index=corrector.columns)
+    measured_en = meas_real[0]
+    real_en = meas_real[1]
+    correction = meas_real[1] - meas_real[0]
 
-    if real_energy in corrector.En_real.values:
-        corrector_ind = corrector[corrector.En_real == real_energy].index[0]
+    to_add_in_corrector = [measured_en, real_en, correction, 0, 0]
+    a_series = pd.Series(to_add_in_corrector, index=corrector.columns)
 
-        corrector.loc[[corrector_ind], :] = to_append
+    if real_en in corrector.En_real.values:
+        corrector_ind = corrector[corrector.En_real == real_en].index[0]
+        corrector.loc[[corrector_ind], :] = to_add_in_corrector
 
-        if corrector_ind == 0:    # We cannot calculate coefficients for line zero in the corrector
+        if corrector_ind == 0:    # We cannot calculate coefficients for line with zero index in the corrector
             return corrector
 
         for i in range(corrector_ind, corrector_ind + 2):
-            corrector.loc[[corrector_ind], ['Slope']] = calculate(slope, corrector, corrector_ind)
-            corrector.loc[[corrector_ind], ['Intercept']] = calculate(intercept, corrector, corrector_ind)
+            corrector.loc[[corrector_ind], ['Slope']] = calc_coefficient(slope, corrector, corrector_ind)
+            corrector.loc[[corrector_ind], ['Intercept']] = calc_coefficient(intercept, corrector, corrector_ind)
 
     else:
         corrector = corrector.append(a_series, ignore_index=True)
@@ -38,26 +39,37 @@ def add_to_corrector(corrector, correction):
                 start_ind = 1
 
             for i in range(start_ind, last_ind + 1):
-                corrector.loc[[i], ['Slope']] = calculate(slope, corrector, last_ind)
-                corrector.loc[[i], ['Intercept']] = calculate(intercept, corrector, last_ind)
+                corrector.loc[[i], ['Slope']] = calc_coefficient(slope, corrector, last_ind)
+                corrector.loc[[i], ['Intercept']] = calc_coefficient(intercept, corrector, last_ind)
 
     return corrector
 
 
-def calculate(function, corrector, index):
+def calc_coefficient(line_func_coefficient, corrector, index):
+
     y1 = corrector.loc[[index], ['Corr']].values[0]
     y2 = corrector.loc[[index - 1], ['Corr']].values[0]
     x1 = corrector.loc[[index], ['En_meas']].values[0]
     x2 = corrector.loc[[index - 1], ['En_meas']].values[0]
-    return function(x1, y1, x2, y2)
+
+    return line_func_coefficient(x1, y1, x2, y2)
 
 
-def slope(x1, y1, x2, y2):
+def slope(x1: float, y1: float, x2: float, y2: float) -> float:
     return (y1 - y2) / (x1 - x2)
 
 
-def intercept(x1, y1, x2, y2):
+def intercept(x1: float, y1: float, x2: float, y2: float) -> float:
     return (y1 * x2 - y2 * x1) / (x2 - x1)
+
+
+def adjust_region(df_to_adjust: pd.DataFrame, df_main: pd.DataFrame) -> pd.DataFrame:
+    cols = df_main.columns
+    interp_func = interpolate.interp1d(df_to_adjust.iloc[:, 0], df_to_adjust.iloc[:, 1],
+                                       kind='quadratic',
+                                       fill_value='extrapolate')
+
+    return pd.DataFrame(data={cols[0]: df_main.iloc[:, 0], cols[1]: interp_func(df_main.iloc[:, 0])})
 
 
 en_corrector = pd.DataFrame(columns=['En_meas', 'En_real', 'Corr', 'Slope', 'Intercept'])
@@ -103,12 +115,17 @@ for ind in df.index:
         # TODO: Interpolate I0 data for x values from Ir data
         Io_data = read_dat_file(path_dat_files + Io_filename, kth_Io, scan_type)
         Ir_data = read_dat_file(path_dat_files + Ir_filename, kth_Ir, scan_type)
-        if (Ir_data is None) and (Io_data is None):
+
+        if (Ir_data is None) or (Io_data is None):
             continue
 
         Ir_Io = Ir_data
 
         if scan_type == 'en':
+
+            if Ir_data.shape != Io_data.shape:
+                Io_data = adjust_region(Io_data, Ir_data)
+
             Ir_Io.intensity = Ir_data.intensity / Io_data.intensity * 100
 
             # Energy correction
