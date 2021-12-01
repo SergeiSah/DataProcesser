@@ -1,5 +1,5 @@
 import plotly.graph_objects as go
-from reader import *
+from file_reader import *
 import pandas as pd
 import numpy as np
 
