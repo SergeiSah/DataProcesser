@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 from error_handler import try_read
 import numpy as np
 from scipy.interpolate import interpolate, pchip_interpolate
-from reader import *
+from file_reader import *
 
 
 @try_read
@@ -26,7 +26,7 @@ def en_correction(file_path, real_en, kth_num):
     # fig.add_trace(go.Scatter(x=file['en'], y=file['derv']))
     # fig.show()
 
-    return meas_en, real_en - meas_en
+    return meas_en, real_en
 
 
 def smoothing(df, n_scatters=400, window=17):  # Adding points and smoothing
