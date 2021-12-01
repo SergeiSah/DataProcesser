@@ -106,48 +106,42 @@ for ind in df.index:
         # Add data to en_corrector Data Frame
         en_corrector.add_to_corrector(corr)
 
-    # elif not pd.isna(Io_file_num):
-    #     Io_filename = line['First part of file name'].values[0] + str(int(Io_file_num)) + '.dat'
-    #     Ir_filename = line['First part of file name'].values[0] + str(int(Ir_file_num)) + '.dat'
-    #     new_filename = str(int(line['file #'].values[0])) + '.dat'
-    #
-    #     scan_type = line['Scan m. 1'].values[0]
-    #
-    #     Io_data = read_dat_file(path_dat_files + Io_filename, kth_Io, scan_type)
-    #     Ir_data = read_dat_file(path_dat_files + Ir_filename, kth_Ir, scan_type)
-    #
-    #     if (Ir_data is None) or (Io_data is None):
-    #         continue
-    #
-    #     Ir_Io = Ir_data
-    #
-    #     if scan_type == 'en':
-    #         corr_df = en_corrector.corr_df
-    #
-    #         if Ir_data.shape != Io_data.shape:
-    #             Io_data = adjust_region(Io_data, Ir_data)
-    #
-    #         Ir_Io.intensity = Ir_data.intensity / Io_data.intensity * 100
-    #
-    #         # Energy correction
-    #         for corr_ind in corr_df.index:
-    #
-    #             # Find required range
-    #             if Ir_Io.en.mean() < corr_df.loc[[corr_ind], 'En_meas'].values[0]:
-    #                 Ir_Io.en = Ir_Io.en + Ir_Io.en * corr_df.loc[[corr_ind], 'Slope'].values[0] + \
-    #                            corr_df.loc[[corr_ind], 'Intercept'].values[0]
-    #                 break
-    #
-    #     elif scan_type == 'tha':
-    #         Ir_Io.intensity = Ir_data.intensity / Io_data.intensity.mean() * 100
-    #
-    #     Ir_Io.to_csv(path_processed_dat_files + new_filename, sep='\t', index=False, float_format="%.10f")
+    elif not pd.isna(Io_file_num):
+        Io_filename = line['First part of file name'].values[0] + str(int(Io_file_num)) + '.dat'
+        Ir_filename = line['First part of file name'].values[0] + str(int(Ir_file_num)) + '.dat'
+        new_filename = str(int(line['file #'].values[0])) + '.dat'
 
-df = en_corrector.corr_df
+        scan_type = line['Scan m. 1'].values[0]
 
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=df['En_real'], y=df['Corr']))
-fig.show()
+        Io_data = read_dat_file(path_dat_files + Io_filename, kth_Io, scan_type)
+        Ir_data = read_dat_file(path_dat_files + Ir_filename, kth_Ir, scan_type)
+
+        if (Ir_data is None) or (Io_data is None):
+            continue
+
+        Ir_Io = Ir_data
+
+        if scan_type == 'en':
+            corr_df = en_corrector.corr_df
+
+            if Ir_data.shape != Io_data.shape:
+                Io_data = adjust_region(Io_data, Ir_data)
+
+            Ir_Io.intensity = Ir_data.intensity / Io_data.intensity * 100
+
+            # Energy correction
+            for corr_ind in corr_df.index:
+
+                # Find required range
+                if Ir_Io.en.mean() < corr_df.loc[[corr_ind], 'En_meas'].values[0]:
+                    Ir_Io.en = Ir_Io.en + Ir_Io.en * corr_df.loc[[corr_ind], 'Slope'].values[0] + \
+                               corr_df.loc[[corr_ind], 'Intercept'].values[0]
+                    break
+
+        elif scan_type == 'tha':
+            Ir_Io.intensity = Ir_data.intensity / Io_data.intensity.mean() * 100
+
+        Ir_Io.to_csv(path_processed_dat_files + new_filename, sep='\t', index=False, float_format="%.10f")
 
 # TODO: Добавить обработку NEXAFS
 # TODO: Автоматически определять kithley (по возможности)
